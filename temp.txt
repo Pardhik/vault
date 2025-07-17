@@ -1,0 +1,33 @@
+#!/bin/bash
+wget https://releases.hashicorp.com/vault/1.15.0/vault_1.15.0_linux_amd64.zip
+unzip vault_1.15.0_linux_amd64.zip
+sudo mv vault /usr/local/bin/
+vault --version
+# Set Vault address
+export VAULT_ADDR=""  # Update with your Vault server address
+
+# Set your AppRole Role ID and Secret ID
+ROLE_ID=""      # Update with your Role ID
+SECRET_ID=""  # Update with your Secret ID
+
+# Authenticate with AppRole to get a Vault token
+VAULT_TOKEN=$(vault write -field=token auth/approle/login role_id="$ROLE_ID" secret_id="$SECRET_ID")
+export VAULT_TOKEN
+
+# Set the namespace/path to search
+NAMESPACE_PATH="ZNA/ZSOA/JavaService/AKS/encryption/dev"           # Update with your namespace
+
+# List all secret keys under the namespace
+SECRET_KEYS=$(vault kv list $NAMESPACE_PATH 2>/dev/null | grep -v '^Keys' | grep -v '^----')
+
+if [ -z "$SECRET_KEYS" ]; then
+    echo "No secrets found under $NAMESPACE_PATH or path does not exist."
+    exit 1
+fi
+
+echo "Secrets under $NAMESPACE_PATH:"
+for key in $SECRET_KEYS; do
+    echo "Fetching secret: $key"
+    vault kv get $NAMESPACE_PATH/$key
+    echo "-----------------------------"
+done
